@@ -2,7 +2,7 @@
   <div class="document-browser">
     <div class="header">
       <div class="header-top">
-        <h1>Epstein - House Oversight Documents</h1>
+        <h1>Epstein Browser</h1>
         <button class="close-btn" @click="$emit('close-sidebar')" aria-label="Close sidebar">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18" />
