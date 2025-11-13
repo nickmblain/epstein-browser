@@ -17,9 +17,13 @@ const activeFilters = ref({
   hasPages: false
 })
 const typeFilters = ref({
-  email: true,
-  book: true,
-  misc: true
+  transcript: false,
+  legal: false,
+  financial: false,
+  news: false,
+  email: false,
+  book: false,
+  misc: false
 })
 
 // Common English stop words to filter out
@@ -47,6 +51,75 @@ export function useDocuments() {
     const lowerText = text.toLowerCase()
     const firstChunk = text.substring(0, 2000) // Analyze first 2000 chars
     const lowerFirstChunk = firstChunk.toLowerCase()
+
+    // Transcript detection - depositions, interviews, lectures (very specific patterns)
+    const transcriptPatterns = [
+      /rough\s+draft\s+transcript/i,
+      /case\s+name:/i,
+      /witness\s+name:/i,
+      /date\s+of\s+deposition:/i,
+      /stenotype/i
+    ]
+    let transcriptScore = 0
+    for (const pattern of transcriptPatterns) {
+      if (pattern.test(firstChunk)) transcriptScore++
+    }
+    if (transcriptScore >= 2 || (lowerFirstChunk.includes('deposition') && lowerFirstChunk.includes('transcript'))) {
+      return 'transcript'
+    }
+
+    // Legal document detection - court filings, declarations, opinions
+    const legalPatterns = [
+      /case\s+\d+:\d+-cv-\d+/i,
+      /declaration\s+in\s+support/i,
+      /exhibit\s+\d+/i,
+      /in\s+re\s+[A-Z]/,
+      /cite\s+as\s+\d+/i
+    ]
+    let legalScore = 0
+    for (const pattern of legalPatterns) {
+      if (pattern.test(firstChunk)) legalScore++
+    }
+    // Also check for plaintiff/defendant mentions with numbered paragraphs
+    if (legalScore >= 1 ||
+        (/(plaintiff|defendant)/i.test(firstChunk) && /^\d+\.\s+[A-Z]/m.test(firstChunk))) {
+      return 'legal'
+    }
+
+    // Financial/Investment report detection
+    const financialPatterns = [
+      /investment\s+(management|strategy|outlook)/i,
+      /chief\s+investment\s+officer/i,
+      /managing\s+director/i,
+      /dear\s+clients/i,
+      /(DJIA|NASDAQ|S&P\s+500)/i,
+      /\d+-yr\s+T-Note/i
+    ]
+    let financialScore = 0
+    for (const pattern of financialPatterns) {
+      if (pattern.test(firstChunk)) financialScore++
+    }
+    // Also check for economic terminology
+    if (financialScore >= 2 ||
+        (/(GDP|inflation|portfolio)/i.test(firstChunk) && /(outlook|forecast|analysis)/i.test(firstChunk))) {
+      return 'financial'
+    }
+
+    // News article detection
+    const newsPatterns = [
+      /^By\s+[A-Z][a-z]+\s+[A-Z][a-z]+/im,
+      /(New\s+York\s+Times|Washington\s+Post|Associated\s+Press|Reuters)/i,
+      /\d{1,2}:\d{2}\s+(am|pm|AM|PM)/
+    ]
+    let newsScore = 0
+    for (const pattern of newsPatterns) {
+      if (pattern.test(firstChunk)) newsScore++
+    }
+    // Check for URLs combined with news patterns
+    if ((newsScore >= 2) ||
+        (/https?:\/\/[^\s]+/.test(firstChunk) && newsScore >= 1)) {
+      return 'news'
+    }
 
     // Email detection - look for email headers
     const emailPatterns = [
@@ -251,8 +324,9 @@ export function useDocuments() {
   // Apply filters to a document list
   function applyFilters(docs) {
     return docs.filter(doc => {
-      // Type filters
-      if (doc.type && !typeFilters.value[doc.type]) return false
+      // Type filters - if any type filter is active, only show matching types
+      const anyTypeFilterActive = Object.values(typeFilters.value).some(v => v === true)
+      if (anyTypeFilterActive && doc.type && !typeFilters.value[doc.type]) return false
 
       // If hasText filter is active, only show docs with text
       if (activeFilters.value.hasText && !doc.hasText) return false

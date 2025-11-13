@@ -52,6 +52,51 @@
       <div class="type-filters">
         <button
           class="type-filter-btn"
+          :class="{ active: typeFilters.transcript }"
+          @click="toggleTypeFilter('transcript')"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14,2 14,8 20,8"></polyline>
+            <line x1="8" y1="13" x2="16" y2="13"></line>
+            <line x1="8" y1="17" x2="16" y2="17"></line>
+          </svg>
+          <span>Transcript</span>
+        </button>
+        <button
+          class="type-filter-btn"
+          :class="{ active: typeFilters.legal }"
+          @click="toggleTypeFilter('legal')"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L4 7v6c0 5.5 3.8 10.7 8 12 4.2-1.3 8-6.5 8-12V7l-8-5z"></path>
+          </svg>
+          <span>Legal</span>
+        </button>
+        <button
+          class="type-filter-btn"
+          :class="{ active: typeFilters.financial }"
+          @click="toggleTypeFilter('financial')"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="1" x2="12" y2="23"></line>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+          <span>Financial</span>
+        </button>
+        <button
+          class="type-filter-btn"
+          :class="{ active: typeFilters.news }"
+          @click="toggleTypeFilter('news')"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+          </svg>
+          <span>News</span>
+        </button>
+        <button
+          class="type-filter-btn"
           :class="{ active: typeFilters.email }"
           @click="toggleTypeFilter('email')"
         >
@@ -132,7 +177,24 @@
             </div>
             <div class="doc-badges">
               <span v-if="doc.type" class="badge type-badge" :class="`type-${doc.type}`">
-                <svg v-if="doc.type === 'email'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg v-if="doc.type === 'transcript'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14,2 14,8 20,8"></polyline>
+                  <line x1="8" y1="13" x2="16" y2="13"></line>
+                  <line x1="8" y1="17" x2="16" y2="17"></line>
+                </svg>
+                <svg v-else-if="doc.type === 'legal'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2L4 7v6c0 5.5 3.8 10.7 8 12 4.2-1.3 8-6.5 8-12V7l-8-5z"></path>
+                </svg>
+                <svg v-else-if="doc.type === 'financial'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="1" x2="12" y2="23"></line>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+                <svg v-else-if="doc.type === 'news'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+                <svg v-else-if="doc.type === 'email'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
                   <polyline points="22,6 12,13 2,6"></polyline>
                 </svg>
@@ -351,7 +413,7 @@ onMounted(() => {
 .stats {
   display: flex;
   gap: 1rem;
-  font-size: 0.875rem;
+  font-size: 0.675rem;
   color: #666;
 }
 
@@ -407,7 +469,7 @@ onMounted(() => {
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
-  font-size: 0.875rem;
+  font-size: 0.675rem;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -433,7 +495,7 @@ onMounted(() => {
   min-width: 150px;
   border: none;
   outline: none;
-  font-size: 1rem;
+  font-size: 0.675rem;
   padding: 0.25rem;
 }
 
@@ -469,6 +531,7 @@ onMounted(() => {
 
 .type-filters {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.5rem 1.5rem;
   background: white;
@@ -517,7 +580,7 @@ onMounted(() => {
 }
 
 .legend-title {
-  font-size: 0.875rem;
+  font-size: 0.675rem;
   font-weight: 500;
   color: #666;
 }
@@ -532,7 +595,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
+  font-size: 0.675rem;
 }
 
 .legend-color {
@@ -599,7 +662,7 @@ onMounted(() => {
 .doc-id {
   font-weight: 500;
   color: #333;
-  font-size: 0.875rem;
+  font-size: 0.675rem;
 }
 
 .doc-date {
@@ -616,7 +679,7 @@ onMounted(() => {
 .badge {
   padding: 0.125rem 0.5rem;
   border-radius: 3px;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 500;
 }
 
@@ -629,21 +692,6 @@ onMounted(() => {
 
 .type-badge svg {
   flex-shrink: 0;
-}
-
-.type-email {
-  background: #e3f2fd;
-  color: #1565c0;
-}
-
-.type-book {
-  background: #f3e5f5;
-  color: #6a1b9a;
-}
-
-.type-misc {
-  background: #f5f5f5;
-  color: #757575;
 }
 
 .text-badge {
@@ -684,7 +732,7 @@ onMounted(() => {
 
 .search-loading p {
   margin: 0.5rem 0 0 0;
-  font-size: 0.875rem;
+  font-size: 0.675rem;
   color: #666;
 }
 
@@ -738,7 +786,7 @@ onMounted(() => {
   }
 
   .search-input {
-    font-size: 0.875rem;
+    font-size: 0.675rem;
   }
 
   .header {

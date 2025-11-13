@@ -104,7 +104,7 @@ function addWordToSearch(word) {
 }
 
 .toggle-text {
-  font-size: 0.875rem;
+  font-size: 0.675rem;
   font-weight: 500;
   letter-spacing: 0.5px;
 }
@@ -193,7 +193,7 @@ function addWordToSearch(word) {
   align-items: center;
   justify-content: center;
   color: #999;
-  font-size: 0.875rem;
+  font-size: 0.675rem;
   padding: 2rem;
   text-align: center;
 }

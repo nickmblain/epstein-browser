@@ -222,16 +222,21 @@ src/
 - Snippet extraction showing context around matches
 
 ### 2. Document Types
+Auto-detected using pattern matching on document content:
+- **Transcript**: Depositions, interviews, lectures (detected by "ROUGH DRAFT TRANSCRIPT", "WITNESS NAME:", etc.)
+- **Legal**: Court filings, declarations, opinions (detected by case numbers like "Case 1:16-cv-04642", "EXHIBIT", etc.)
+- **Financial**: Investment reports, economic analysis (detected by "Investment Outlook", GDP, S&P 500, etc.)
+- **News**: News articles (detected by URLs, bylines "By [Author]", news outlet names)
 - **Email**: Auto-detected by email headers (From, To, Subject, etc.)
 - **Book**: Detected by chapter markers, table of contents
-- **Misc**: Everything else
-- Type filters allow showing/hiding document types
+- **Misc**: Everything else that doesn't match patterns
+- Type filters (7 buttons in 2 rows): Default all OFF = show all documents. Click any to show ONLY that type (can select multiple)
 
 ### 3. Document Filters
 - Has Text / No Text
 - Has Native Files
 - Has Page Count
-- Document type (Email/Book/Misc)
+- Document type (Transcript/Legal/Financial/News/Email/Book/Misc)
 
 ### 4. Text Highlighting
 - Highlights all search terms in different colors

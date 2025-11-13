@@ -333,7 +333,7 @@ watch(
 .document-meta {
   display: flex;
   gap: 1rem;
-  font-size: 0.875rem;
+  font-size: 0.675rem;
   color: #666;
 }
 
