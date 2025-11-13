@@ -18,6 +18,21 @@
               <span v-if="document.pageCount > 0">{{ document.pageCount }} pages</span>
             </div>
           </div>
+          <button
+            class="share-btn"
+            @click="shareDocument"
+            title="Share document link"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+            <span class="share-text">Share</span>
+            <span v-if="showCopied" class="copied-tooltip">Link copied!</span>
+          </button>
           <div class="attribution">
             Built by Nick because transparency matters.
           </div>
@@ -39,22 +54,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Floating share button -->
-      <button
-        class="share-btn"
-        @click="shareDocument"
-        title="Share document link"
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="18" cy="5" r="3" />
-          <circle cx="6" cy="12" r="3" />
-          <circle cx="18" cy="19" r="3" />
-          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-        </svg>
-        <span v-if="showCopied" class="copied-tooltip">Link copied!</span>
-      </button>
     </div>
   </div>
 </template>
@@ -161,6 +160,13 @@ async function shareDocument() {
 
   const url = new URL(window.location.href)
   url.searchParams.set('doc', props.document.id)
+
+  // Add search terms to URL if any exist
+  if (props.searchTerms && props.searchTerms.length > 0) {
+    url.searchParams.set('terms', props.searchTerms.join(','))
+  } else {
+    url.searchParams.delete('terms')
+  }
 
   try {
     await navigator.clipboard.writeText(url.toString())
@@ -350,28 +356,27 @@ watch(
 }
 
 .share-btn {
-  position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: #4a90e2;
-  border: none;
-  color: white;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  z-index: 900;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #4a90e2;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  position: relative;
+  margin-left: 1rem;
+  align-self: center;
 }
 
 .share-btn:hover {
   background: #357abd;
-  box-shadow: 0 6px 16px rgba(74, 144, 226, 0.5);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
 }
 
 .share-btn:active {
@@ -380,6 +385,10 @@ watch(
 
 .share-btn svg {
   display: block;
+}
+
+.share-text {
+  display: inline;
 }
 
 .copied-tooltip {
@@ -438,15 +447,17 @@ watch(
   }
 
   .share-btn {
-    bottom: 1.5rem;
-    right: 1.5rem;
-    width: 48px;
-    height: 48px;
+    padding: 0.5rem;
+    margin-left: 0.5rem;
+  }
+
+  .share-text {
+    display: none;
   }
 
   .share-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
   }
 }
 </style>

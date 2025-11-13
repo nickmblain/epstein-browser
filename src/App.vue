@@ -15,12 +15,20 @@ onMounted(() => {
   }
 })
 
-// Check for document ID in URL and auto-select it
+// Check for document ID and search terms in URL and auto-select/populate them
 watch(() => documents.value.length, (newLength) => {
   if (newLength > 0 && !selectedDocument.value) {
     const urlParams = new URLSearchParams(window.location.search)
-    const docId = urlParams.get('doc')
 
+    // Load search terms from URL if present
+    const termsParam = urlParams.get('terms')
+    if (termsParam) {
+      const terms = termsParam.split(',').map(t => t.trim()).filter(t => t.length > 0)
+      searchTerms.value = terms
+    }
+
+    // Load document ID from URL if present
+    const docId = urlParams.get('doc')
     if (docId) {
       const doc = documents.value.find(d => d.id === docId)
       if (doc) {
@@ -36,6 +44,12 @@ function handleDocumentSelect(doc) {
   // Update URL without reloading the page
   const url = new URL(window.location.href)
   url.searchParams.set('doc', doc.id)
+
+  // Preserve search terms in URL
+  if (searchTerms.value.length > 0) {
+    url.searchParams.set('terms', searchTerms.value.join(','))
+  }
+
   window.history.pushState({}, '', url)
 
   // Close sidebar on mobile after selecting a document
