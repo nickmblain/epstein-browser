@@ -40,6 +40,29 @@
       </div>
 
       <div class="content-area">
+        <div v-if="totalMatches > 0" class="match-navigator">
+          <button
+            class="nav-btn"
+            @click="previousMatch"
+            title="Previous match"
+            :disabled="totalMatches === 0"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <span class="match-counter">{{ currentMatchIndex + 1 }} of {{ totalMatches }}</span>
+          <button
+            class="nav-btn"
+            @click="nextMatch"
+            title="Next match"
+            :disabled="totalMatches === 0"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
         <div class="text-view">
           <div v-if="loadingText" class="loading">
             Loading text...
@@ -73,6 +96,8 @@ const textContent = ref('')
 const loadingText = ref(false)
 const textError = ref(null)
 const showCopied = ref(false)
+const currentMatchIndex = ref(0)
+const totalMatches = ref(0)
 
 // Color palette for search terms (same as DocumentBrowser)
 const colorPalette = [
@@ -126,16 +151,18 @@ const highlightedText = computed(() => {
     }
   }
 
+  // Store total matches count
+  totalMatches.value = nonOverlapping.length
+
   // Apply highlights from end to start
-  // Mark the first (last in reversed array) with an id for scrolling
+  // Mark each match with an id for navigation
   for (let i = 0; i < nonOverlapping.length; i++) {
     const match = nonOverlapping[i]
     const color = colorPalette[match.colorIndex % colorPalette.length]
     const before = escaped.substring(0, match.start)
-    const isFirst = i === nonOverlapping.length - 1 // Last in reversed array is first match
-    const highlighted = isFirst
-      ? `<mark id="first-match" style="background-color: ${color.bg}; color: ${color.text};">${match.term}</mark>`
-      : `<mark style="background-color: ${color.bg}; color: ${color.text};">${match.term}</mark>`
+    const matchId = nonOverlapping.length - i - 1 // Reverse to get document order
+    const isCurrent = matchId === currentMatchIndex.value
+    const highlighted = `<mark id="match-${matchId}" class="${isCurrent ? 'current-match' : ''}" style="background-color: ${color.bg}; color: ${color.text};">${match.term}</mark>`
     const after = escaped.substring(match.end)
     escaped = before + highlighted + after
   }
@@ -147,12 +174,24 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-async function scrollToFirstMatch() {
+async function scrollToMatch(index) {
   await nextTick()
-  const firstMatch = document.getElementById('first-match')
-  if (firstMatch) {
-    firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  const match = document.getElementById(`match-${index}`)
+  if (match) {
+    match.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
+}
+
+function nextMatch() {
+  if (totalMatches.value === 0) return
+  currentMatchIndex.value = (currentMatchIndex.value + 1) % totalMatches.value
+  scrollToMatch(currentMatchIndex.value)
+}
+
+function previousMatch() {
+  if (totalMatches.value === 0) return
+  currentMatchIndex.value = (currentMatchIndex.value - 1 + totalMatches.value) % totalMatches.value
+  scrollToMatch(currentMatchIndex.value)
 }
 
 async function shareDocument() {
@@ -187,6 +226,8 @@ watch(
     // Reset state
     textContent.value = ''
     textError.value = null
+    currentMatchIndex.value = 0
+    totalMatches.value = 0
 
     // Load text if available
     if (newDoc.hasText) {
@@ -197,7 +238,8 @@ watch(
           textContent.value = text
           // Scroll to first match after content is loaded
           if (props.searchTerms && props.searchTerms.length > 0) {
-            scrollToFirstMatch()
+            await nextTick()
+            scrollToMatch(0)
           }
         } else {
           textError.value = 'Text file not found'
@@ -216,8 +258,9 @@ watch(
 watch(
   () => props.searchTerms,
   () => {
+    currentMatchIndex.value = 0
     if (textContent.value && props.searchTerms && props.searchTerms.length > 0) {
-      scrollToFirstMatch()
+      scrollToMatch(0)
     }
   },
   { deep: true }
@@ -308,6 +351,57 @@ watch(
 .content-area {
   flex: 1;
   overflow: hidden;
+  position: relative;
+}
+
+.match-navigator {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.nav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  transition: color 0.2s;
+  border-radius: 4px;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.nav-btn svg {
+  display: block;
+}
+
+.match-counter {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+  min-width: 60px;
+  text-align: center;
 }
 
 .text-view {
@@ -341,18 +435,10 @@ watch(
   border-radius: 3px;
 }
 
-.text-content mark#first-match {
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
-  animation: pulse-highlight 2s ease-in-out;
-}
-
-@keyframes pulse-highlight {
-  0%, 100% {
-    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgba(74, 144, 226, 0.5);
-  }
+.text-content mark.current-match {
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.4);
+  outline: 2px solid #4a90e2;
+  outline-offset: 1px;
 }
 
 .share-btn {
@@ -444,6 +530,22 @@ watch(
 
   .attribution {
     display: none;
+  }
+
+  .match-navigator {
+    padding: 0.375rem 0.5rem;
+    top: 0.5rem;
+    right: 0.5rem;
+  }
+
+  .match-counter {
+    font-size: 0.75rem;
+    min-width: 50px;
+  }
+
+  .nav-btn svg {
+    width: 14px;
+    height: 14px;
   }
 
   .share-btn {
