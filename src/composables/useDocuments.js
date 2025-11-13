@@ -9,6 +9,7 @@ const searchTerms = ref([]) // Array of search terms for multi-term search
 const selectedDocument = ref(null)
 const searchIndex = ref(null) // Pre-built search index
 const searchLoading = ref(false)
+const wordFrequency = ref([]) // Top words by frequency
 const activeFilters = ref({
   hasText: true,
   noText: false,
@@ -16,7 +17,62 @@ const activeFilters = ref({
   hasPages: false
 })
 
+// Common English stop words to filter out
+const STOP_WORDS = new Set([
+  'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i',
+  'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at',
+  'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her', 'she',
+  'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their', 'what',
+  'so', 'up', 'out', 'if', 'about', 'who', 'get', 'which', 'go', 'me',
+  'when', 'make', 'can', 'like', 'time', 'no', 'just', 'him', 'know', 'take',
+  'people', 'into', 'year', 'your', 'good', 'some', 'could', 'them', 'see', 'other',
+  'than', 'then', 'now', 'look', 'only', 'come', 'its', 'over', 'think', 'also',
+  'back', 'after', 'use', 'two', 'how', 'our', 'work', 'first', 'well', 'way',
+  'even', 'new', 'want', 'because', 'any', 'these', 'give', 'day', 'most', 'us',
+  'is', 'was', 'are', 'been', 'has', 'had', 'were', 'said', 'did', 'having',
+  'may', 'should', 'am', 'being', 'does', 'shall', 'will', 'can', 'might', 'must'
+])
+
 export function useDocuments() {
+
+  // Analyze word frequency across all documents
+  function analyzeWordFrequency() {
+    if (!searchIndex.value) return
+
+    console.log('Analyzing word frequency...')
+    const wordCounts = new Map()
+
+    // Analyze all documents
+    for (const doc of searchIndex.value.documents) {
+      if (!doc.text) continue
+
+      // Split text into words
+      const words = doc.text.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ') // Remove special characters
+        .split(/\s+/)
+        .filter(word =>
+          word.length > 3 && // At least 4 characters
+          !STOP_WORDS.has(word) && // Not a stop word
+          !/^\d+$/.test(word) // Not just numbers
+        )
+
+      // Count word occurrences
+      for (const word of words) {
+        wordCounts.set(word, (wordCounts.get(word) || 0) + 1)
+      }
+    }
+
+    // Convert to array, sort by frequency, and take top 50
+    const sortedWords = Array.from(wordCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 50)
+      .map(([word, count]) => ({ word, count }))
+
+    // Filter to only words that appear in at least 10 documents
+    wordFrequency.value = sortedWords.filter(item => item.count >= 10)
+
+    console.log(`✓ Found ${wordFrequency.value.length} common words`)
+  }
 
   // Load the pre-built search index
   async function loadDocuments() {
@@ -49,6 +105,9 @@ export function useDocuments() {
       console.log(`✓ Loaded search index in ${loadTime}s`)
       console.log(`  Total documents: ${searchIndex.value.stats.total}`)
       console.log(`  Searchable documents: ${searchIndex.value.stats.indexed}`)
+
+      // Analyze word frequency after loading
+      analyzeWordFrequency()
 
     } catch (err) {
       error.value = `Failed to load search index: ${err.message}`
@@ -231,6 +290,7 @@ export function useDocuments() {
     documentsWithText,
     searchLoading,
     searchIndex,
+    wordFrequency,
     activeFilters,
     hasActiveFilters,
     loadDocuments,

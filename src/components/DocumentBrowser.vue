@@ -1,22 +1,24 @@
 <template>
-  <div class="document-browser">
-    <div class="header">
-      <div class="header-top">
-        <h1>Epstein Browser</h1>
-        <button class="close-btn" @click="$emit('close-sidebar')" aria-label="Close sidebar">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+  <div class="document-browser-wrapper">
+    <WordCloud />
+    <div class="document-browser">
+      <div class="header">
+        <div class="header-top">
+          <h1>Epstein Browser</h1>
+          <button class="close-btn" @click="$emit('close-sidebar')" aria-label="Close sidebar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="stats" v-if="!loading">
+          <span>Total documents: {{ documents.length }}</span>
+          <span v-if="searchTerms.length > 0">Filtered documents: {{ filteredDocuments.length }}</span>
+        </div>
       </div>
-      <div class="stats" v-if="!loading">
-        <span>Total documents: {{ documents.length }}</span>
-        <span v-if="searchTerms.length > 0">Filtered documents: {{ filteredDocuments.length }}</span>
-      </div>
-    </div>
 
-    <div class="search-bar">
+      <div class="search-bar">
       <div class="search-chips-container">
         <div
           v-for="(term, index) in searchTerms"
@@ -39,71 +41,72 @@
           :disabled="searchLoading"
         />
       </div>
-      <button v-if="searchTerms.length > 0" @click="clearAllTerms" class="clear-btn">
-        Clear All
-      </button>
-    </div>
+        <button v-if="searchTerms.length > 0" @click="clearAllTerms" class="clear-btn">
+          Clear All
+        </button>
+      </div>
 
-    <div v-if="searchTerms.length > 0" class="color-legend">
-      <span class="legend-title">Highlighting:</span>
-      <div class="legend-items">
+      <div v-if="searchTerms.length > 0" class="color-legend">
+        <span class="legend-title">Highlighting:</span>
+        <div class="legend-items">
+          <div
+            v-for="(term, index) in searchTerms"
+            :key="index"
+            class="legend-item"
+          >
+            <span
+              class="legend-color"
+              :style="{ backgroundColor: getTermColor(index) }"
+            ></span>
+            <span class="legend-text">{{ term }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="searchLoading" class="search-loading">
+        <div class="loading-bar">
+          <div class="loading-progress"></div>
+        </div>
+        <p>Loading search index...</p>
+      </div>
+
+      <div v-if="loading" class="loading">
+        Loading documents...
+      </div>
+
+      <div v-else-if="error" class="error">
+        {{ error }}
+      </div>
+
+      <div v-else class="document-list">
         <div
-          v-for="(term, index) in searchTerms"
-          :key="index"
-          class="legend-item"
+          v-for="doc in filteredDocuments"
+          :key="doc.id"
+          class="document-item"
+          :class="{ selected: selectedDocument?.id === doc.id }"
+          @click="selectDocument(doc)"
         >
-          <span
-            class="legend-color"
-            :style="{ backgroundColor: getTermColor(index) }"
-          ></span>
-          <span class="legend-text">{{ term }}</span>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="searchLoading" class="search-loading">
-      <div class="loading-bar">
-        <div class="loading-progress"></div>
-      </div>
-      <p>Loading search index...</p>
-    </div>
-
-    <div v-if="loading" class="loading">
-      Loading documents...
-    </div>
-
-    <div v-else-if="error" class="error">
-      {{ error }}
-    </div>
-
-    <div v-else class="document-list">
-      <div
-        v-for="doc in filteredDocuments"
-        :key="doc.id"
-        class="document-item"
-        :class="{ selected: selectedDocument?.id === doc.id }"
-        @click="selectDocument(doc)"
-      >
-        <div class="doc-header">
-          <div class="doc-info">
-            <span class="doc-id">{{ doc.id }}</span>
-            <span class="doc-date">Released: 11/12/2025</span>
+          <div class="doc-header">
+            <div class="doc-info">
+              <span class="doc-id">{{ doc.id }}</span>
+              <span class="doc-date">Released: 11/12/2025</span>
+            </div>
+            <div class="doc-badges">
+              <span v-if="doc.matchCount > 0" class="badge match-badge">
+                {{ doc.matchCount }} match{{ doc.matchCount > 1 ? 'es' : '' }}
+              </span>
+              <span v-if="doc.pageCount > 0" class="badge pages-badge">
+                {{ doc.pageCount }} pages
+              </span>
+            </div>
           </div>
-          <div class="doc-badges">
-            <span v-if="doc.matchCount > 0" class="badge match-badge">
-              {{ doc.matchCount }} match{{ doc.matchCount > 1 ? 'es' : '' }}
-            </span>
-            <span v-if="doc.pageCount > 0" class="badge pages-badge">
-              {{ doc.pageCount }} pages
-            </span>
+          <div v-if="doc.snippet" class="doc-snippet" v-html="highlightSnippet(doc.snippet.snippet)">
           </div>
         </div>
-        <div v-if="doc.snippet" class="doc-snippet" v-html="highlightSnippet(doc.snippet.snippet)">
-        </div>
-      </div>
 
-      <div v-if="filteredDocuments.length === 0 && searchTerms.length > 0" class="no-results">
-        No documents found matching all terms: {{ searchTerms.join(', ') }}
+        <div v-if="filteredDocuments.length === 0 && searchTerms.length > 0" class="no-results">
+          No documents found matching all terms: {{ searchTerms.join(', ') }}
+        </div>
       </div>
     </div>
   </div>
@@ -112,6 +115,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useDocuments } from '../composables/useDocuments'
+import WordCloud from './WordCloud.vue'
 
 const {
   documents,
@@ -230,11 +234,19 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.document-browser-wrapper {
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
 .document-browser {
   height: 100%;
   display: flex;
   flex-direction: column;
   background: #f5f5f5;
+  position: relative;
+  z-index: 1;
 }
 
 .header {
