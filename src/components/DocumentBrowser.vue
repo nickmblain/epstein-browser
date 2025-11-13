@@ -49,6 +49,42 @@
         </button>
       </div>
 
+      <div class="type-filters">
+        <button
+          class="type-filter-btn"
+          :class="{ active: typeFilters.email }"
+          @click="toggleTypeFilter('email')"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="22,6 12,13 2,6"></polyline>
+          </svg>
+          <span>Email</span>
+        </button>
+        <button
+          class="type-filter-btn"
+          :class="{ active: typeFilters.book }"
+          @click="toggleTypeFilter('book')"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          <span>Book</span>
+        </button>
+        <button
+          class="type-filter-btn"
+          :class="{ active: typeFilters.misc }"
+          @click="toggleTypeFilter('misc')"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+            <polyline points="13 2 13 9 20 9"></polyline>
+          </svg>
+          <span>Misc</span>
+        </button>
+      </div>
+
       <div v-if="searchTerms.length > 0" class="color-legend">
         <span class="legend-title">Highlighting:</span>
         <div class="legend-items">
@@ -95,6 +131,21 @@
               <span class="doc-date">Released: 11/12/2025</span>
             </div>
             <div class="doc-badges">
+              <span v-if="doc.type" class="badge type-badge" :class="`type-${doc.type}`">
+                <svg v-if="doc.type === 'email'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+                <svg v-else-if="doc.type === 'book'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+                <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                  <polyline points="13 2 13 9 20 9"></polyline>
+                </svg>
+                {{ doc.type }}
+              </span>
               <span v-if="doc.matchCount > 0" class="badge match-badge">
                 {{ doc.matchCount }} match{{ doc.matchCount > 1 ? 'es' : '' }}
               </span>
@@ -130,6 +181,7 @@ const {
   filteredDocuments,
   documentsWithText,
   searchLoading,
+  typeFilters,
   loadDocuments
 } = useDocuments()
 
@@ -229,6 +281,10 @@ function highlightSnippet(snippet) {
 function selectDocument(doc) {
   selectedDocument.value = doc
   emit('select-document', doc)
+}
+
+function toggleTypeFilter(type) {
+  typeFilters.value[type] = !typeFilters.value[type]
 }
 
 onMounted(() => {
@@ -411,6 +467,45 @@ onMounted(() => {
   background: #d0d0d0;
 }
 
+.type-filters {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 1.5rem;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.type-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #999;
+}
+
+.type-filter-btn svg {
+  flex-shrink: 0;
+  stroke: currentColor;
+}
+
+.type-filter-btn.active {
+  background: white;
+  border-color: #4a90e2;
+  color: #333;
+  font-weight: 500;
+}
+
+.type-filter-btn:hover {
+  border-color: #4a90e2;
+  color: #333;
+}
+
 .color-legend {
   padding: 0.75rem 1.5rem;
   background: #f9f9f9;
@@ -525,6 +620,32 @@ onMounted(() => {
   font-weight: 500;
 }
 
+.type-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  text-transform: capitalize;
+}
+
+.type-badge svg {
+  flex-shrink: 0;
+}
+
+.type-email {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.type-book {
+  background: #f3e5f5;
+  color: #6a1b9a;
+}
+
+.type-misc {
+  background: #f5f5f5;
+  color: #757575;
+}
+
 .text-badge {
   background: #e3f2fd;
   color: #1976d2;
@@ -626,6 +747,20 @@ onMounted(() => {
 
   .search-bar {
     padding: 0.75rem 1rem;
+  }
+
+  .type-filters {
+    padding: 0.5rem 1rem;
+  }
+
+  .type-filter-btn {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  .type-filter-btn svg {
+    width: 10px;
+    height: 10px;
   }
 }
 </style>

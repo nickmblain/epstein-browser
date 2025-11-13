@@ -16,6 +16,11 @@ const activeFilters = ref({
   hasNative: false,
   hasPages: false
 })
+const typeFilters = ref({
+  email: true,
+  book: true,
+  misc: true
+})
 
 // Common English stop words to filter out
 const STOP_WORDS = new Set([
@@ -34,6 +39,64 @@ const STOP_WORDS = new Set([
 ])
 
 export function useDocuments() {
+
+  // Detect document type based on content patterns
+  function detectDocumentType(text) {
+    if (!text || text.length < 50) return 'misc'
+
+    const lowerText = text.toLowerCase()
+    const firstChunk = text.substring(0, 2000) // Analyze first 2000 chars
+    const lowerFirstChunk = firstChunk.toLowerCase()
+
+    // Email detection - look for email headers
+    const emailPatterns = [
+      /^from:/m,
+      /^to:/m,
+      /^subject:/m,
+      /^date:/m,
+      /^sent:/m,
+      /\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/i,
+      /^cc:/m,
+      /^bcc:/m,
+      /^re:/m
+    ]
+
+    let emailScore = 0
+    for (const pattern of emailPatterns) {
+      if (pattern.test(lowerFirstChunk)) {
+        emailScore++
+      }
+    }
+
+    // If we find 3+ email indicators, it's likely an email
+    if (emailScore >= 3) return 'email'
+
+    // Book detection - look for structured content
+    const bookPatterns = [
+      /\bchapter\s+\d+/i,
+      /\bchapter\s+[ivxlcdm]+/i, // Roman numerals
+      /^chapter\s/im,
+      /\bpage\s+\d+/i,
+      /\btable of contents\b/i,
+      /\bpreface\b/i,
+      /\bintroduction\b.*chapter/i
+    ]
+
+    let bookScore = 0
+    for (const pattern of bookPatterns) {
+      if (pattern.test(lowerText)) {
+        bookScore++
+      }
+    }
+
+    // Check for book-like structure (longer paragraphs, chapters)
+    if (bookScore >= 2 || lowerFirstChunk.includes('chapter')) {
+      return 'book'
+    }
+
+    // Default to misc
+    return 'misc'
+  }
 
   // Analyze word frequency across all documents
   function analyzeWordFrequency() {
@@ -91,15 +154,24 @@ export function useDocuments() {
 
       searchIndex.value = await response.json()
 
-      // Build documents array from index
+      // Build documents array from index with type detection
       documents.value = searchIndex.value.documents.map(doc => {
+        const docType = doc.text ? detectDocumentType(doc.text) : 'misc'
         return {
           id: doc.id,
           hasText: doc.hasText,
           pageCount: doc.pageCount,
-          index: doc.index
+          index: doc.index,
+          type: docType
         }
       })
+
+      // Log type distribution
+      const typeCounts = documents.value.reduce((acc, doc) => {
+        acc[doc.type] = (acc[doc.type] || 0) + 1
+        return acc
+      }, {})
+      console.log('  Document types:', typeCounts)
 
       const loadTime = ((Date.now() - startTime) / 1000).toFixed(2)
       console.log(`✓ Loaded search index in ${loadTime}s`)
@@ -178,9 +250,10 @@ export function useDocuments() {
 
   // Apply filters to a document list
   function applyFilters(docs) {
-    if (!hasActiveFilters.value) return docs
-
     return docs.filter(doc => {
+      // Type filters
+      if (doc.type && !typeFilters.value[doc.type]) return false
+
       // If hasText filter is active, only show docs with text
       if (activeFilters.value.hasText && !doc.hasText) return false
 
@@ -292,6 +365,7 @@ export function useDocuments() {
     searchIndex,
     wordFrequency,
     activeFilters,
+    typeFilters,
     hasActiveFilters,
     loadDocuments,
     loadDocumentText,
