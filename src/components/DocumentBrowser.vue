@@ -53,7 +53,10 @@
         @click="selectDocument(doc)"
       >
         <div class="doc-header">
-          <span class="doc-id">{{ doc.id }}</span>
+          <div class="doc-info">
+            <span class="doc-id">{{ doc.id }}</span>
+            <span class="doc-date">Released: 11/12/2025</span>
+          </div>
           <div class="doc-badges">
             <span v-if="doc.matchCount > 0" class="badge match-badge">
               {{ doc.matchCount }} match{{ doc.matchCount > 1 ? 'es' : '' }}
@@ -239,10 +242,22 @@ onMounted(() => {
   align-items: center;
 }
 
+.doc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 .doc-id {
   font-weight: 500;
   color: #333;
   font-size: 0.875rem;
+}
+
+.doc-date {
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: 400;
 }
 
 .doc-badges {
