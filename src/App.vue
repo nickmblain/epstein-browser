@@ -4,7 +4,7 @@ import DocumentBrowser from './components/DocumentBrowser.vue'
 import DocumentViewer from './components/DocumentViewer.vue'
 import { useDocuments } from './composables/useDocuments'
 
-const { searchQuery, documents, loading } = useDocuments()
+const { searchQuery, searchTerms, documents, loading } = useDocuments()
 const selectedDocument = ref(null)
 const sidebarOpen = ref(false)
 
@@ -80,7 +80,7 @@ function closeSidebar() {
       <DocumentBrowser @select-document="handleDocumentSelect" @close-sidebar="closeSidebar" />
     </div>
     <div class="viewer-pane">
-      <DocumentViewer :document="selectedDocument" :search-query="searchQuery" />
+      <DocumentViewer :document="selectedDocument" :search-terms="searchTerms" />
     </div>
   </div>
 </template>

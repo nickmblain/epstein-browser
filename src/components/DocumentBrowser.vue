@@ -12,21 +12,53 @@
       </div>
       <div class="stats" v-if="!loading">
         <span>Total documents: {{ documents.length }}</span>
-        <span v-if="searchQuery">Filtered documents: {{ filteredDocuments.length }}</span>
+        <span v-if="searchTerms.length > 0">Filtered documents: {{ filteredDocuments.length }}</span>
       </div>
     </div>
 
     <div class="search-bar">
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="Search for 'Trump' or 'Netanyahu'."
-        class="search-input"
-        :disabled="searchLoading"
-      />
-      <button v-if="searchQuery" @click="searchQuery = ''" class="clear-btn">
-        Clear
+      <div class="search-chips-container">
+        <div
+          v-for="(term, index) in searchTerms"
+          :key="index"
+          class="search-chip"
+          :style="{ backgroundColor: getTermColor(index), color: getTermTextColor(index) }"
+        >
+          <span>{{ term }}</span>
+          <button @click="removeTerm(index)" class="chip-remove" :aria-label="`Remove ${term}`">
+            ×
+          </button>
+        </div>
+        <input
+          v-model="currentInput"
+          @keydown.enter="addTerm"
+          @keydown.backspace="handleBackspace"
+          type="text"
+          placeholder="Add search term..."
+          class="chip-input"
+          :disabled="searchLoading"
+        />
+      </div>
+      <button v-if="searchTerms.length > 0" @click="clearAllTerms" class="clear-btn">
+        Clear All
       </button>
+    </div>
+
+    <div v-if="searchTerms.length > 0" class="color-legend">
+      <span class="legend-title">Highlighting:</span>
+      <div class="legend-items">
+        <div
+          v-for="(term, index) in searchTerms"
+          :key="index"
+          class="legend-item"
+        >
+          <span
+            class="legend-color"
+            :style="{ backgroundColor: getTermColor(index) }"
+          ></span>
+          <span class="legend-text">{{ term }}</span>
+        </div>
+      </div>
     </div>
 
     <div v-if="searchLoading" class="search-loading">
@@ -66,20 +98,19 @@
             </span>
           </div>
         </div>
-        <div v-if="doc.snippet" class="doc-snippet">
-          {{ doc.snippet.snippet }}
+        <div v-if="doc.snippet" class="doc-snippet" v-html="highlightSnippet(doc.snippet.snippet)">
         </div>
       </div>
 
-      <div v-if="filteredDocuments.length === 0" class="no-results">
-        No documents found matching "{{ searchQuery }}"
+      <div v-if="filteredDocuments.length === 0 && searchTerms.length > 0" class="no-results">
+        No documents found matching all terms: {{ searchTerms.join(', ') }}
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useDocuments } from '../composables/useDocuments'
 
 const {
@@ -87,6 +118,7 @@ const {
   loading,
   error,
   searchQuery,
+  searchTerms,
   selectedDocument,
   filteredDocuments,
   documentsWithText,
@@ -95,6 +127,97 @@ const {
 } = useDocuments()
 
 const emit = defineEmits(['select-document', 'close-sidebar'])
+const currentInput = ref('')
+
+// Color palette for search terms
+const colorPalette = [
+  { bg: '#fff3cd', text: '#856404' }, // yellow
+  { bg: '#d4edda', text: '#155724' }, // green
+  { bg: '#d1ecf1', text: '#0c5460' }, // blue
+  { bg: '#f8d7da', text: '#721c24' }, // pink
+  { bg: '#ffe5cc', text: '#8b4513' }, // orange
+  { bg: '#e2d9f3', text: '#4a235a' }, // purple
+]
+
+function getTermColor(index) {
+  return colorPalette[index % colorPalette.length].bg
+}
+
+function getTermTextColor(index) {
+  return colorPalette[index % colorPalette.length].text
+}
+
+function addTerm() {
+  const term = currentInput.value.trim()
+  if (term && !searchTerms.value.includes(term)) {
+    searchTerms.value.push(term)
+    currentInput.value = ''
+  }
+}
+
+function removeTerm(index) {
+  searchTerms.value.splice(index, 1)
+}
+
+function clearAllTerms() {
+  searchTerms.value = []
+  currentInput.value = ''
+}
+
+function handleBackspace(e) {
+  if (currentInput.value === '' && searchTerms.value.length > 0) {
+    searchTerms.value.pop()
+  }
+}
+
+function highlightSnippet(snippet) {
+  if (!snippet || searchTerms.value.length === 0) {
+    return snippet
+  }
+
+  let highlightedText = snippet
+
+  // Create an array of matches with their positions
+  const matches = []
+  searchTerms.value.forEach((term, index) => {
+    const regex = new RegExp(term, 'gi')
+    let match
+    while ((match = regex.exec(snippet)) !== null) {
+      matches.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        term: match[0],
+        colorIndex: index
+      })
+    }
+  })
+
+  // Sort matches by start position (descending) to replace from end to start
+  matches.sort((a, b) => b.start - a.start)
+
+  // Remove overlapping matches (keep the first one found)
+  const nonOverlapping = []
+  for (const match of matches) {
+    const overlaps = nonOverlapping.some(m =>
+      (match.start >= m.start && match.start < m.end) ||
+      (match.end > m.start && match.end <= m.end)
+    )
+    if (!overlaps) {
+      nonOverlapping.push(match)
+    }
+  }
+
+  // Apply highlights from end to start
+  for (const match of nonOverlapping) {
+    const color = colorPalette[match.colorIndex % colorPalette.length]
+    const before = highlightedText.substring(0, match.start)
+    const highlighted = `<mark style="background-color: ${color.bg}; color: ${color.text}; padding: 2px 4px; border-radius: 3px; font-weight: 600;">${match.term}</mark>`
+    const after = highlightedText.substring(match.end)
+    highlightedText = before + highlighted + after
+  }
+
+  return highlightedText
+}
 
 function selectDocument(doc) {
   selectedDocument.value = doc
@@ -173,6 +296,64 @@ onMounted(() => {
   border-bottom: 1px solid #e0e0e0;
   display: flex;
   gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.search-chips-container {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  min-height: 42px;
+  background: white;
+  align-items: center;
+}
+
+.search-chips-container:focus-within {
+  border-color: #4a90e2;
+}
+
+.search-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.chip-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0 0.125rem;
+  color: inherit;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.chip-remove:hover {
+  opacity: 1;
+}
+
+.chip-input {
+  flex: 1;
+  min-width: 150px;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+  padding: 0.25rem;
+}
+
+.chip-input::placeholder {
+  color: #999;
 }
 
 .search-input {
@@ -194,10 +375,53 @@ onMounted(() => {
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .clear-btn:hover {
   background: #d0d0d0;
+}
+
+.color-legend {
+  padding: 0.75rem 1.5rem;
+  background: #f9f9f9;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.legend-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #666;
+}
+
+.legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.legend-color {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid #ddd;
+}
+
+.legend-text {
+  color: #333;
+  font-weight: 500;
 }
 
 .loading,
@@ -278,12 +502,12 @@ onMounted(() => {
 }
 
 .pages-badge {
-  background: #f3e5f5;
-  color: #7b1fa2;
+  background: #f0f0f0;
+  color: #666;
 }
 
 .match-badge {
-  background: #fff3e0;
+  background: #ffe0e0;
   color: #e65100;
   font-weight: 600;
 }

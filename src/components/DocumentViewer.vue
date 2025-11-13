@@ -60,12 +60,12 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import { useDocuments } from '../composables/useDocuments'
 
 const props = defineProps({
   document: Object,
-  searchQuery: String
+  searchTerms: Array
 })
 
 const { loadDocumentText } = useDocuments()
@@ -75,26 +75,85 @@ const loadingText = ref(false)
 const textError = ref(null)
 const showCopied = ref(false)
 
-// Highlight search terms in text
+// Color palette for search terms (same as DocumentBrowser)
+const colorPalette = [
+  { bg: '#fff3cd', text: '#856404' }, // yellow
+  { bg: '#d4edda', text: '#155724' }, // green
+  { bg: '#d1ecf1', text: '#0c5460' }, // blue
+  { bg: '#f8d7da', text: '#721c24' }, // pink
+  { bg: '#ffe5cc', text: '#8b4513' }, // orange
+  { bg: '#e2d9f3', text: '#4a235a' }, // purple
+]
+
+// Highlight multiple search terms in different colors
 const highlightedText = computed(() => {
-  if (!textContent.value || !props.searchQuery || props.searchQuery.trim().length === 0) {
+  if (!textContent.value || !props.searchTerms || props.searchTerms.length === 0) {
     return textContent.value
   }
 
-  const query = props.searchQuery.trim()
-  const regex = new RegExp(`(${escapeRegex(query)})`, 'gi')
-
-  // Escape HTML and highlight matches
-  const escaped = textContent.value
+  // Escape HTML first
+  let escaped = textContent.value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
 
-  return escaped.replace(regex, '<mark>$1</mark>')
+  // Create an array of matches with their positions
+  const matches = []
+  props.searchTerms.forEach((term, index) => {
+    const regex = new RegExp(escapeRegex(term), 'gi')
+    let match
+    while ((match = regex.exec(escaped)) !== null) {
+      matches.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        term: match[0],
+        colorIndex: index
+      })
+    }
+  })
+
+  // Sort matches by start position (descending) to replace from end to start
+  matches.sort((a, b) => b.start - a.start)
+
+  // Remove overlapping matches (keep the first one found)
+  const nonOverlapping = []
+  for (const match of matches) {
+    const overlaps = nonOverlapping.some(m =>
+      (match.start >= m.start && match.start < m.end) ||
+      (match.end > m.start && match.end <= m.end)
+    )
+    if (!overlaps) {
+      nonOverlapping.push(match)
+    }
+  }
+
+  // Apply highlights from end to start
+  // Mark the first (last in reversed array) with an id for scrolling
+  for (let i = 0; i < nonOverlapping.length; i++) {
+    const match = nonOverlapping[i]
+    const color = colorPalette[match.colorIndex % colorPalette.length]
+    const before = escaped.substring(0, match.start)
+    const isFirst = i === nonOverlapping.length - 1 // Last in reversed array is first match
+    const highlighted = isFirst
+      ? `<mark id="first-match" style="background-color: ${color.bg}; color: ${color.text};">${match.term}</mark>`
+      : `<mark style="background-color: ${color.bg}; color: ${color.text};">${match.term}</mark>`
+    const after = escaped.substring(match.end)
+    escaped = before + highlighted + after
+  }
+
+  return escaped
 })
 
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+async function scrollToFirstMatch() {
+  await nextTick()
+  const firstMatch = document.getElementById('first-match')
+  if (firstMatch) {
+    firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
 }
 
 async function shareDocument() {
@@ -130,6 +189,10 @@ watch(
         const text = await loadDocumentText(newDoc.id)
         if (text) {
           textContent.value = text
+          // Scroll to first match after content is loaded
+          if (props.searchTerms && props.searchTerms.length > 0) {
+            scrollToFirstMatch()
+          }
         } else {
           textError.value = 'Text file not found'
         }
@@ -141,6 +204,17 @@ watch(
     }
   },
   { immediate: true }
+)
+
+// Watch for search term changes and scroll to first match
+watch(
+  () => props.searchTerms,
+  () => {
+    if (textContent.value && props.searchTerms && props.searchTerms.length > 0) {
+      scrollToFirstMatch()
+    }
+  },
+  { deep: true }
 )
 </script>
 
@@ -256,11 +330,23 @@ watch(
 }
 
 .text-content mark {
-  background-color: #ffeb3b;
-  color: #000;
-  padding: 2px 0;
+  padding: 2px 4px;
   font-weight: 600;
-  border-radius: 2px;
+  border-radius: 3px;
+}
+
+.text-content mark#first-match {
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
+  animation: pulse-highlight 2s ease-in-out;
+}
+
+@keyframes pulse-highlight {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(74, 144, 226, 0.5);
+  }
 }
 
 .share-btn {

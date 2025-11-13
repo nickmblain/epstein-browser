@@ -5,6 +5,7 @@ const documents = ref([])
 const loading = ref(false)
 const error = ref(null)
 const searchQuery = ref('')
+const searchTerms = ref([]) // Array of search terms for multi-term search
 const selectedDocument = ref(null)
 const searchIndex = ref(null) // Pre-built search index
 const searchLoading = ref(false)
@@ -134,54 +135,75 @@ export function useDocuments() {
     })
   }
 
-  // Filter documents based on search query (ID or content)
+  // Filter documents based on search terms (ID or content) - ALL terms must match (AND logic)
   const filteredDocuments = computed(() => {
     let results = []
 
-    // If no search query, return all documents
-    if (!searchQuery.value.trim() || !searchIndex.value) {
-      results = documents.value.map(doc => ({ ...doc, snippet: null, matchCount: 0 }))
+    // If no search terms, return all documents
+    if (searchTerms.value.length === 0 || !searchIndex.value) {
+      results = documents.value.map(doc => ({ ...doc, snippet: null, matchCount: 0, termMatches: {} }))
     } else {
       // Search through documents
-      const query = searchQuery.value.toLowerCase()
+      const terms = searchTerms.value.map(t => t.toLowerCase())
 
       for (let i = 0; i < documents.value.length; i++) {
         const doc = documents.value[i]
         const indexDoc = searchIndex.value.documents[i]
 
-        let matchCount = 0
+        let totalMatchCount = 0
         let snippet = null
+        let idMatch = false
+        const termMatches = {} // Track matches per term
 
-        // Check if ID matches
-        const idMatch = doc.id.toLowerCase().includes(query)
+        // Check if ALL terms match (AND logic)
+        let allTermsMatch = true
 
-        // Check if content matches (use pre-indexed searchText)
-        if (indexDoc.searchText) {
-          // Count matches using the pre-lowercased search text
-          let pos = 0
-          while ((pos = indexDoc.searchText.indexOf(query, pos)) !== -1) {
-            matchCount++
-            pos += query.length
+        for (const term of terms) {
+          let termMatchCount = 0
+
+          // Check if ID matches
+          if (doc.id.toLowerCase().includes(term)) {
+            idMatch = true
+            termMatchCount++
           }
 
-          // Extract first match snippet using original text
-          if (matchCount > 0 && indexDoc.text) {
-            snippet = extractSnippet(indexDoc.text, query)
+          // Check if content matches (use pre-indexed searchText)
+          if (indexDoc.searchText) {
+            let pos = 0
+            while ((pos = indexDoc.searchText.indexOf(term, pos)) !== -1) {
+              termMatchCount++
+              pos += term.length
+            }
           }
+
+          // If this term has no matches, document doesn't match (AND logic)
+          if (termMatchCount === 0) {
+            allTermsMatch = false
+            break
+          }
+
+          termMatches[term] = termMatchCount
+          totalMatchCount += termMatchCount
         }
 
-        // Include document if ID matches or content matches
-        if (idMatch || matchCount > 0) {
+        // Only include document if ALL terms matched
+        if (allTermsMatch) {
+          // Extract snippet showing the first term match
+          if (totalMatchCount > 0 && indexDoc.text) {
+            snippet = extractSnippet(indexDoc.text, terms[0])
+          }
+
           results.push({
             ...doc,
             snippet,
-            matchCount,
+            matchCount: totalMatchCount,
+            termMatches,
             idMatch
           })
         }
       }
 
-      // Sort results: ID matches first, then by match count
+      // Sort results: ID matches first, then by total match count
       results.sort((a, b) => {
         if (a.idMatch && !b.idMatch) return -1
         if (!a.idMatch && b.idMatch) return 1
@@ -203,6 +225,7 @@ export function useDocuments() {
     loading,
     error,
     searchQuery,
+    searchTerms,
     selectedDocument,
     filteredDocuments,
     documentsWithText,
