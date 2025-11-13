@@ -19,28 +19,31 @@
       </div>
 
       <div class="search-bar">
-      <div class="search-chips-container">
-        <div
-          v-for="(term, index) in searchTerms"
-          :key="index"
-          class="search-chip"
-          :style="{ backgroundColor: getTermColor(index), color: getTermTextColor(index) }"
-        >
-          <span>{{ term }}</span>
-          <button @click="removeTerm(index)" class="chip-remove" :aria-label="`Remove ${term}`">
-            ×
-          </button>
+        <div class="search-bar-content">
+          <div class="search-chips-container">
+            <div
+              v-for="(term, index) in searchTerms"
+              :key="index"
+              class="search-chip"
+              :style="{ backgroundColor: getTermColor(index), color: getTermTextColor(index) }"
+            >
+              <span>{{ term }}</span>
+              <button @click="removeTerm(index)" class="chip-remove" :aria-label="`Remove ${term}`">
+                ×
+              </button>
+            </div>
+            <input
+              v-model="currentInput"
+              @keydown.enter="addTerm"
+              @keydown.backspace="handleBackspace"
+              type="text"
+              placeholder="Type and press Enter to add..."
+              class="chip-input"
+              :disabled="searchLoading"
+            />
+          </div>
+          <p class="search-hint">Add multiple terms to find documents containing all of them</p>
         </div>
-        <input
-          v-model="currentInput"
-          @keydown.enter="addTerm"
-          @keydown.backspace="handleBackspace"
-          type="text"
-          placeholder="Add search term..."
-          class="chip-input"
-          :disabled="searchLoading"
-        />
-      </div>
         <button v-if="searchTerms.length > 0" @click="clearAllTerms" class="clear-btn">
           Clear All
         </button>
@@ -309,6 +312,20 @@ onMounted(() => {
   display: flex;
   gap: 0.5rem;
   align-items: flex-start;
+}
+
+.search-bar-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.search-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #999;
+  padding-left: 0.5rem;
 }
 
 .search-chips-container {
